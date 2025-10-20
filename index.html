@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asthma Tracker</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+        body {
+            box-sizing: border-box;
+        }
+        html, body {
+            height: 100%;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pulse-success {
+            animation: pulseSuccess 0.6s ease-out;
+        }
+        @keyframes pulseSuccess {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="bg-gradient-to-br from-blue-50 to-green-50 min-h-full">
+  <div class="max-w-md mx-auto bg-white min-h-full shadow-lg"><!-- Header -->
+   <header class="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4 sticky top-0 z-10">
+    <h1 id="app-title" class="text-xl font-bold text-center">My Asthma Tracker</h1>
+    <p id="welcome-message" class="text-blue-100 text-center text-sm mt-1">Track your asthma daily</p>
+   </header><!-- Navigation -->
+   <nav class="bg-white border-b border-gray-200 sticky top-16 z-10">
+    <div class="flex"><button id="nav-log" class="flex-1 py-3 px-4 text-center font-medium text-blue-600 border-b-2 border-blue-600 bg-blue-50"> 📝 Log Entry </button> <button id="nav-history" class="flex-1 py-3 px-4 text-center font-medium text-gray-500 hover:text-blue-600"> 📊 History </button>
+    </div>
+   </nav><!-- Main Content -->
+   <main class="p-4 pb-20"><!-- Log Entry Section -->
+    <section id="log-section" class="space-y-4">
+     <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+      <h2 class="text-lg font-semibold text-blue-800 mb-3">📝 New Entry</h2><!-- Entry Type Selection -->
+      <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-2">Entry Type</label>
+       <div class="grid grid-cols-3 gap-2"><button id="type-symptom" class="entry-type-btn bg-red-100 text-red-700 border border-red-300 rounded-lg py-2 px-3 text-sm font-medium hover:bg-red-200"> 🫁 Symptoms </button> <button id="type-medication" class="entry-type-btn bg-green-100 text-green-700 border border-green-300 rounded-lg py-2 px-3 text-sm font-medium hover:bg-green-200"> 💊 Medication </button> <button id="type-peak-flow" class="entry-type-btn bg-blue-100 text-blue-700 border border-blue-300 rounded-lg py-2 px-3 text-sm font-medium hover:bg-blue-200"> 📈 Peak Flow </button>
+       </div>
+      </div><!-- Entry Form -->
+      <form id="entry-form" class="space-y-4">
+       <div><label for="entry-value" class="block text-sm font-medium text-gray-700 mb-1"> <span id="value-label">Severity (1-10)</span> </label> <input type="text" id="entry-value" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter value">
+       </div>
+       <div><label for="entry-notes" class="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label> <textarea id="entry-notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any additional notes..."></textarea>
+       </div><button type="submit" id="save-btn" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"> Save Entry </button>
+      </form>
+     </div><!-- Quick Stats -->
+     <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+      <h3 class="text-lg font-semibold text-green-800 mb-3">📊 Today's Summary</h3>
+      <div class="grid grid-cols-3 gap-3 text-center">
+       <div class="bg-white rounded-lg p-3 border border-green-200">
+        <div id="today-symptoms" class="text-2xl font-bold text-red-600">
+         0
+        </div>
+        <div class="text-xs text-gray-600">
+         Symptoms
+        </div>
+       </div>
+       <div class="bg-white rounded-lg p-3 border border-green-200">
+        <div id="today-medications" class="text-2xl font-bold text-green-600">
+         0
+        </div>
+        <div class="text-xs text-gray-600">
+         Medications
+        </div>
+       </div>
+       <div class="bg-white rounded-lg p-3 border border-green-200">
+        <div id="today-peak-flows" class="text-2xl font-bold text-blue-600">
+         0
+        </div>
+        <div class="text-xs text-gray-600">
+         Peak Flows
+        </div>
+       </div>
+      </div>
+     </div>
+    </section><!-- History Section -->
+    <section id="history-section" class="hidden space-y-4">
+     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">📊 Entry History</h2>
+      <div id="entries-list" class="space-y-3">
+       <div class="text-center text-gray-500 py-8">
+        <div class="text-4xl mb-2">
+         📋
+        </div>
+        <p>No entries yet. Start tracking your asthma!</p>
+       </div>
+      </div>
+     </div>
+    </section>
+   </main><!-- Success Toast -->
+   <div id="success-toast" class="fixed bottom-4 left-4 right-4 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-full transition-transform duration-300 z-50">
+    <div class="flex items-center"><span class="text-lg mr-2">✅</span> <span>Entry saved successfully!</span>
+    </div>
+   </div><!-- Error Toast -->
+   <div id="error-toast" class="fixed bottom-4 left-4 right-4 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-full transition-transform duration-300 z-50">
+    <div class="flex items-center"><span class="text-lg mr-2">❌</span> <span id="error-message">Something went wrong. Please try again.</span>
+    </div>
+   </div>
+  </div>
+  <script>
+        // Configuration
+        const defaultConfig = {
+            app_title: "My Asthma Tracker",
+            welcome_message: "Track your asthma daily",
+            primary_color: "#2563eb",
+            secondary_color: "#16a34a",
+            background_color: "#f8fafc",
+            font_family: "system-ui",
+            font_size: 16
+        };
+
+        // Global state
+        let currentEntryType = 'symptom';
+        let allEntries = [];
+        let recordCount = 0;
+
+        // Data handler for SDK
+        const dataHandler = {
+            onDataChanged(data) {
+                allEntries = data || [];
+                recordCount = allEntries.length;
+                updateTodayStats();
+                renderEntriesHistory();
+            }
+        };
+
+        // Initialize SDKs
+        async function initializeApp() {
+            try {
+                // Initialize Data SDK
+                const initResult = await window.dataSdk.init(dataHandler);
+                if (!initResult.isOk) {
+                    console.error("Failed to initialize data SDK");
+                    showError("Failed to initialize app storage");
+                    return;
+                }
+
+                // Initialize Element SDK
+                if (window.elementSdk) {
+                    await window.elementSdk.init({
+                        defaultConfig,
+                        render,
+                        mapToCapabilities,
+                        mapToEditPanelValues
+                    });
+                }
+
+                setupEventListeners();
+                updateEntryTypeUI();
+            } catch (error) {
+                console.error("Initialization error:", error);
+                showError("Failed to initialize app");
+            }
+        }
+
+        // Render function for Element SDK
+        async function render(config) {
+            const appTitle = document.getElementById('app-title');
+            const welcomeMessage = document.getElementById('welcome-message');
+            
+            if (appTitle) {
+                appTitle.textContent = config.app_title || defaultConfig.app_title;
+            }
+            if (welcomeMessage) {
+                welcomeMessage.textContent = config.welcome_message || defaultConfig.welcome_message;
+            }
+
+            // Apply colors
+            const primaryColor = config.primary_color || defaultConfig.primary_color;
+            const secondaryColor = config.secondary_color || defaultConfig.secondary_color;
+            const fontSize = config.font_size || defaultConfig.font_size;
+            const fontFamily = config.font_family || defaultConfig.font_family;
+
+            // Apply font
+            document.body.style.fontFamily = `${fontFamily}, system-ui, sans-serif`;
+            document.body.style.fontSize = `${fontSize}px`;
+
+            // Apply colors to header
+            const header = document.querySelector('header');
+            if (header) {
+                header.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`;
+            }
+
+            // Apply colors to buttons and elements
+            const navActiveBtn = document.querySelector('.border-blue-600');
+            if (navActiveBtn) {
+                navActiveBtn.style.borderColor = primaryColor;
+                navActiveBtn.style.color = primaryColor;
+            }
+
+            const saveBtn = document.getElementById('save-btn');
+            if (saveBtn) {
+                saveBtn.style.backgroundColor = primaryColor;
+            }
+        }
+
+        // Capabilities mapping
+        function mapToCapabilities(config) {
+            return {
+                recolorables: [
+                    {
+                        get: () => config.primary_color || defaultConfig.primary_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ primary_color: value });
+                            }
+                        }
+                    },
+                    {
+                        get: () => config.secondary_color || defaultConfig.secondary_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ secondary_color: value });
+                            }
+                        }
+                    }
+                ],
+                borderables: [],
+                fontEditable: {
+                    get: () => config.font_family || defaultConfig.font_family,
+                    set: (value) => {
+                        if (window.elementSdk) {
+                            window.elementSdk.setConfig({ font_family: value });
+                        }
+                    }
+                },
+                fontSizeable: {
+                    get: () => config.font_size || defaultConfig.font_size,
+                    set: (value) => {
+                        if (window.elementSdk) {
+                            window.elementSdk.setConfig({ font_size: value });
+                        }
+                    }
+                }
+            };
+        }
+
+        // Edit panel values mapping
+        function mapToEditPanelValues(config) {
+            return new Map([
+                ["app_title", config.app_title || defaultConfig.app_title],
+                ["welcome_message", config.welcome_message || defaultConfig.welcome_message]
+            ]);
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // Navigation
+            document.getElementById('nav-log').addEventListener('click', () => showSection('log'));
+            document.getElementById('nav-history').addEventListener('click', () => showSection('history'));
+
+            // Entry type buttons
+            document.getElementById('type-symptom').addEventListener('click', () => setEntryType('symptom'));
+            document.getElementById('type-medication').addEventListener('click', () => setEntryType('medication'));
+            document.getElementById('type-peak-flow').addEventListener('click', () => setEntryType('peak-flow'));
+
+            // Form submission
+            document.getElementById('entry-form').addEventListener('submit', handleFormSubmit);
+        }
+
+        // Navigation
+        function showSection(section) {
+            const logSection = document.getElementById('log-section');
+            const historySection = document.getElementById('history-section');
+            const navLog = document.getElementById('nav-log');
+            const navHistory = document.getElementById('nav-history');
+
+            if (section === 'log') {
+                logSection.classList.remove('hidden');
+                historySection.classList.add('hidden');
+                navLog.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                navLog.classList.remove('text-gray-500');
+                navHistory.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                navHistory.classList.add('text-gray-500');
+            } else {
+                logSection.classList.add('hidden');
+                historySection.classList.remove('hidden');
+                navHistory.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                navHistory.classList.remove('text-gray-500');
+                navLog.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                navLog.classList.add('text-gray-500');
+            }
+        }
+
+        // Entry type management
+        function setEntryType(type) {
+            currentEntryType = type;
+            updateEntryTypeUI();
+        }
+
+        function updateEntryTypeUI() {
+            const buttons = document.querySelectorAll('.entry-type-btn');
+            const valueLabel = document.getElementById('value-label');
+            const valueInput = document.getElementById('entry-value');
+
+            buttons.forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-offset-2');
+            });
+
+            let selectedBtn, label, placeholder;
+            
+            switch(currentEntryType) {
+                case 'symptom':
+                    selectedBtn = document.getElementById('type-symptom');
+                    label = 'Severity (1-10)';
+                    placeholder = 'Rate from 1 (mild) to 10 (severe)';
+                    break;
+                case 'medication':
+                    selectedBtn = document.getElementById('type-medication');
+                    label = 'Medication Name';
+                    placeholder = 'e.g., Albuterol, Inhaler';
+                    break;
+                case 'peak-flow':
+                    selectedBtn = document.getElementById('type-peak-flow');
+                    label = 'Peak Flow (L/min)';
+                    placeholder = 'e.g., 450';
+                    break;
+            }
+
+            if (selectedBtn) {
+                selectedBtn.classList.add('ring-2', 'ring-offset-2');
+                if (currentEntryType === 'symptom') selectedBtn.classList.add('ring-red-500');
+                if (currentEntryType === 'medication') selectedBtn.classList.add('ring-green-500');
+                if (currentEntryType === 'peak-flow') selectedBtn.classList.add('ring-blue-500');
+            }
+
+            valueLabel.textContent = label;
+            valueInput.placeholder = placeholder;
+        }
+
+        // Form handling
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+
+            if (recordCount >= 999) {
+                showError("Maximum limit of 999 entries reached. Please delete some entries first.");
+                return;
+            }
+
+            const valueInput = document.getElementById('entry-value');
+            const notesInput = document.getElementById('entry-notes');
+            const saveBtn = document.getElementById('save-btn');
+
+            const value = valueInput.value.trim();
+            if (!value) {
+                showError("Please enter a value");
+                return;
+            }
+
+            // Show loading state
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const now = new Date();
+                const entry = {
+                    id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    type: currentEntryType,
+                    date: now.toISOString().split('T')[0],
+                    time: now.toTimeString().split(' ')[0].substring(0, 5),
+                    value: value,
+                    notes: notesInput.value.trim()
+                };
+
+                const result = await window.dataSdk.create(entry);
+
+                if (result.isOk) {
+                    // Reset form
+                    valueInput.value = '';
+                    notesInput.value = '';
+                    showSuccess();
+                } else {
+                    showError("Failed to save entry. Please try again.");
+                }
+            } catch (error) {
+                console.error("Save error:", error);
+                showError("Failed to save entry. Please try again.");
+            } finally {
+                // Reset button state
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Entry';
+            }
+        }
+
+        // Statistics
+        function updateTodayStats() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayEntries = allEntries.filter(entry => entry.date === today);
+
+            const symptoms = todayEntries.filter(entry => entry.type === 'symptom').length;
+            const medications = todayEntries.filter(entry => entry.type === 'medication').length;
+            const peakFlows = todayEntries.filter(entry => entry.type === 'peak-flow').length;
+
+            document.getElementById('today-symptoms').textContent = symptoms;
+            document.getElementById('today-medications').textContent = medications;
+            document.getElementById('today-peak-flows').textContent = peakFlows;
+        }
+
+        // History rendering
+        function renderEntriesHistory() {
+            const entriesList = document.getElementById('entries-list');
+            
+            if (allEntries.length === 0) {
+                entriesList.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <div class="text-4xl mb-2">📋</div>
+                        <p>No entries yet. Start tracking your asthma!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort entries by date and time (newest first)
+            const sortedEntries = [...allEntries].sort((a, b) => {
+                const dateA = new Date(`${a.date}T${a.time}`);
+                const dateB = new Date(`${b.date}T${b.time}`);
+                return dateB - dateA;
+            });
+
+            entriesList.innerHTML = sortedEntries.map(entry => {
+                const typeConfig = getEntryTypeConfig(entry.type);
+                return `
+                    <div class="bg-white rounded-lg p-3 border border-gray-200 fade-in">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-1">
+                                    <span class="text-lg mr-2">${typeConfig.icon}</span>
+                                    <span class="font-medium ${typeConfig.color}">${typeConfig.label}</span>
+                                    <span class="ml-auto text-sm text-gray-500">${entry.date} ${entry.time}</span>
+                                </div>
+                                <div class="text-sm text-gray-700 mb-1">
+                                    <strong>${typeConfig.valueLabel}:</strong> ${entry.value}
+                                </div>
+                                ${entry.notes ? `<div class="text-sm text-gray-600">${entry.notes}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getEntryTypeConfig(type) {
+            switch(type) {
+                case 'symptom':
+                    return {
+                        icon: '🫁',
+                        label: 'Symptoms',
+                        color: 'text-red-600',
+                        valueLabel: 'Severity'
+                    };
+                case 'medication':
+                    return {
+                        icon: '💊',
+                        label: 'Medication',
+                        color: 'text-green-600',
+                        valueLabel: 'Medication'
+                    };
+                case 'peak-flow':
+                    return {
+                        icon: '📈',
+                        label: 'Peak Flow',
+                        color: 'text-blue-600',
+                        valueLabel: 'Reading'
+                    };
+                default:
+                    return {
+                        icon: '📝',
+                        label: 'Entry',
+                        color: 'text-gray-600',
+                        valueLabel: 'Value'
+                    };
+            }
+        }
+
+        // Toast notifications
+        function showSuccess() {
+            const toast = document.getElementById('success-toast');
+            toast.classList.remove('translate-y-full');
+            setTimeout(() => {
+                toast.classList.add('translate-y-full');
+            }, 3000);
+        }
+
+        function showError(message) {
+            const toast = document.getElementById('error-toast');
+            const messageEl = document.getElementById('error-message');
+            messageEl.textContent = message;
+            toast.classList.remove('translate-y-full');
+            setTimeout(() => {
+                toast.classList.add('translate-y-full');
+            }, 4000);
+        }
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</html>
