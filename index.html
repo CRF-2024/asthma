@@ -110,401 +110,484 @@
     </div>
    </div>
   </div>
-  <script>
-        // Configuration
-        const defaultConfig = {
-            app_title: "My Asthma Tracker",
-            welcome_message: "Track your asthma daily",
-            primary_color: "#2563eb",
-            secondary_color: "#16a34a",
-            background_color: "#f8fafc",
-            font_family: "system-ui",
-            font_size: 16
-        };
+<script>
+    // Configuration
+    const defaultConfig = {
+        app_title: "My Asthma Tracker",
+        welcome_message: "Track your asthma daily",
+        primary_color: "#2563eb", // Default blue
+        secondary_color: "#16a34a", // Default green
+        background_color: "#f8fafc",
+        font_family: "system-ui",
+        font_size: 16
+    };
 
-        // Global state
-        let currentEntryType = 'symptom';
-        let allEntries = [];
-        let recordCount = 0;
+    // Global state
+    let currentEntryType = 'symptom';
+    let allEntries = [];
+    let recordCount = 0;
+    let currentConfig = { ...defaultConfig }; // Store current config globally
 
-        // Data handler for SDK
-        const dataHandler = {
-            onDataChanged(data) {
-                allEntries = data || [];
-                recordCount = allEntries.length;
-                updateTodayStats();
-                renderEntriesHistory();
+    // Data handler for SDK
+    const dataHandler = {
+        onDataChanged(data) {
+            allEntries = data || [];
+            recordCount = allEntries.length;
+            updateTodayStats();
+            renderEntriesHistory();
+        }
+    };
+
+    // Initialize SDKs
+    async function initializeApp() {
+        try {
+            // Initialize Data SDK
+            // This assumes the window.dataSdk is available in the execution environment
+            const initResult = await (window.dataSdk?.init(dataHandler) || { isOk: true }); 
+            if (!initResult.isOk) {
+                console.error("Failed to initialize data SDK");
+                showError("Failed to initialize app storage");
+                return;
             }
-        };
 
-        // Initialize SDKs
-        async function initializeApp() {
-            try {
-                // Initialize Data SDK
-                const initResult = await window.dataSdk.init(dataHandler);
-                if (!initResult.isOk) {
-                    console.error("Failed to initialize data SDK");
-                    showError("Failed to initialize app storage");
-                    return;
-                }
-
-                // Initialize Element SDK
-                if (window.elementSdk) {
-                    await window.elementSdk.init({
-                        defaultConfig,
-                        render,
-                        mapToCapabilities,
-                        mapToEditPanelValues
-                    });
-                }
-
-                setupEventListeners();
-                updateEntryTypeUI();
-            } catch (error) {
-                console.error("Initialization error:", error);
-                showError("Failed to initialize app");
+            // Initialize Element SDK
+            if (window.elementSdk) {
+                await window.elementSdk.init({
+                    defaultConfig,
+                    render,
+                    mapToCapabilities,
+                    mapToEditPanelValues
+                });
+            } else {
+                // Initial render if elementSdk isn't available (e.g., local testing)
+                render(defaultConfig);
             }
+
+            setupEventListeners();
+            updateEntryTypeUI();
+            // Ensure initial section is correct on load
+            showSection('log', false);
+        } catch (error) {
+            console.error("Initialization error:", error);
+            showError("Failed to initialize app");
+        }
+    }
+
+    // Render function for Element SDK
+    async function render(config) {
+        currentConfig = { ...defaultConfig, ...config }; // Update global config
+        const appTitle = document.getElementById('app-title');
+        const welcomeMessage = document.getElementById('welcome-message');
+
+        if (appTitle) {
+            appTitle.textContent = currentConfig.app_title;
+        }
+        if (welcomeMessage) {
+            welcomeMessage.textContent = currentConfig.welcome_message;
         }
 
-        // Render function for Element SDK
-        async function render(config) {
-            const appTitle = document.getElementById('app-title');
-            const welcomeMessage = document.getElementById('welcome-message');
+        // Apply colors
+        const primaryColor = currentConfig.primary_color;
+        const secondaryColor = currentConfig.secondary_color;
+        const fontSize = currentConfig.font_size;
+        const fontFamily = currentConfig.font_family;
+
+        // Apply font
+        document.body.style.fontFamily = `${fontFamily}, system-ui, sans-serif`;
+        document.body.style.fontSize = `${fontSize}px`;
+
+        // Apply colors to header
+        const header = document.querySelector('header');
+        if (header) {
+            header.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`;
+        }
+
+        // Apply colors to save button
+        const saveBtn = document.getElementById('save-btn');
+        if (saveBtn) {
+            saveBtn.style.backgroundColor = primaryColor;
+            // Fix: Override Tailwind's blue ring with dynamic color
+            saveBtn.classList.remove('focus:ring-blue-500');
+            saveBtn.style.boxShadow = `0 0 0 2px ${primaryColor}, 0 0 #0000 inset`; // Apply ring for focus/active state
+        }
+        
+        // Fix: Update navigation styles with the new primary color
+        const currentNav = document.querySelector('.nav-active');
+        updateNavStyles(currentNav ? (currentNav.id === 'nav-log' ? 'log' : 'history') : 'log');
+
+
+        // Fix: Update input field focus ring color
+        document.querySelectorAll('#entry-form input[type="text"], #entry-form textarea').forEach(input => {
+            // Remove existing Tailwind classes for focus ring
+            input.classList.remove('focus:ring-blue-500', 'focus:border-blue-500');
             
-            if (appTitle) {
-                appTitle.textContent = config.app_title || defaultConfig.app_title;
-            }
-            if (welcomeMessage) {
-                welcomeMessage.textContent = config.welcome_message || defaultConfig.welcome_message;
-            }
+            // Re-apply dynamic focus styles (better than adding/removing listeners repeatedly)
+            input.style.setProperty('--tw-ring-color', primaryColor); // Set custom CSS variable
+            input.style.setProperty('--tw-ring-offset-color', 'white'); // Assuming white background
+            input.style.transition = 'all 0.15s ease-in-out';
+            input.style.outline = 'none';
+            
+            // Use focus events to apply the shadow effect
+            input.onfocus = () => {
+                input.style.borderColor = primaryColor;
+                input.style.boxShadow = `0 0 0 3px ${primaryColor}40`; // Light shadow/ring effect
+            };
+            input.onblur = () => {
+                input.style.borderColor = '#d1d5db'; // Default gray border
+                input.style.boxShadow = 'none';
+            };
+        });
+        
+        // Fix: Ensure entry type UI updates to show correct ring color for Peak Flow
+        updateEntryTypeUI();
+    }
 
-            // Apply colors
-            const primaryColor = config.primary_color || defaultConfig.primary_color;
-            const secondaryColor = config.secondary_color || defaultConfig.secondary_color;
-            const fontSize = config.font_size || defaultConfig.font_size;
-            const fontFamily = config.font_family || defaultConfig.font_family;
-
-            // Apply font
-            document.body.style.fontFamily = `${fontFamily}, system-ui, sans-serif`;
-            document.body.style.fontSize = `${fontSize}px`;
-
-            // Apply colors to header
-            const header = document.querySelector('header');
-            if (header) {
-                header.style.background = `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`;
-            }
-
-            // Apply colors to buttons and elements
-            const navActiveBtn = document.querySelector('.border-blue-600');
-            if (navActiveBtn) {
-                navActiveBtn.style.borderColor = primaryColor;
-                navActiveBtn.style.color = primaryColor;
-            }
-
-            const saveBtn = document.getElementById('save-btn');
-            if (saveBtn) {
-                saveBtn.style.backgroundColor = primaryColor;
-            }
-        }
-
-        // Capabilities mapping
-        function mapToCapabilities(config) {
-            return {
-                recolorables: [
-                    {
-                        get: () => config.primary_color || defaultConfig.primary_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ primary_color: value });
-                            }
-                        }
-                    },
-                    {
-                        get: () => config.secondary_color || defaultConfig.secondary_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ secondary_color: value });
-                            }
-                        }
-                    }
-                ],
-                borderables: [],
-                fontEditable: {
-                    get: () => config.font_family || defaultConfig.font_family,
+    // Capabilities mapping
+    function mapToCapabilities(config) {
+        return {
+            recolorables: [
+                {
+                    get: () => config.primary_color || defaultConfig.primary_color,
                     set: (value) => {
                         if (window.elementSdk) {
-                            window.elementSdk.setConfig({ font_family: value });
+                            window.elementSdk.setConfig({ primary_color: value });
                         }
                     }
                 },
-                fontSizeable: {
-                    get: () => config.font_size || defaultConfig.font_size,
+                {
+                    get: () => config.secondary_color || defaultConfig.secondary_color,
                     set: (value) => {
                         if (window.elementSdk) {
-                            window.elementSdk.setConfig({ font_size: value });
+                            window.elementSdk.setConfig({ secondary_color: value });
                         }
                     }
                 }
-            };
-        }
-
-        // Edit panel values mapping
-        function mapToEditPanelValues(config) {
-            return new Map([
-                ["app_title", config.app_title || defaultConfig.app_title],
-                ["welcome_message", config.welcome_message || defaultConfig.welcome_message]
-            ]);
-        }
-
-        // Event listeners
-        function setupEventListeners() {
-            // Navigation
-            document.getElementById('nav-log').addEventListener('click', () => showSection('log'));
-            document.getElementById('nav-history').addEventListener('click', () => showSection('history'));
-
-            // Entry type buttons
-            document.getElementById('type-symptom').addEventListener('click', () => setEntryType('symptom'));
-            document.getElementById('type-medication').addEventListener('click', () => setEntryType('medication'));
-            document.getElementById('type-peak-flow').addEventListener('click', () => setEntryType('peak-flow'));
-
-            // Form submission
-            document.getElementById('entry-form').addEventListener('submit', handleFormSubmit);
-        }
-
-        // Navigation
-        function showSection(section) {
-            const logSection = document.getElementById('log-section');
-            const historySection = document.getElementById('history-section');
-            const navLog = document.getElementById('nav-log');
-            const navHistory = document.getElementById('nav-history');
-
-            if (section === 'log') {
-                logSection.classList.remove('hidden');
-                historySection.classList.add('hidden');
-                navLog.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
-                navLog.classList.remove('text-gray-500');
-                navHistory.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
-                navHistory.classList.add('text-gray-500');
-            } else {
-                logSection.classList.add('hidden');
-                historySection.classList.remove('hidden');
-                navHistory.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
-                navHistory.classList.remove('text-gray-500');
-                navLog.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
-                navLog.classList.add('text-gray-500');
-            }
-        }
-
-        // Entry type management
-        function setEntryType(type) {
-            currentEntryType = type;
-            updateEntryTypeUI();
-        }
-
-        function updateEntryTypeUI() {
-            const buttons = document.querySelectorAll('.entry-type-btn');
-            const valueLabel = document.getElementById('value-label');
-            const valueInput = document.getElementById('entry-value');
-
-            buttons.forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-offset-2');
-            });
-
-            let selectedBtn, label, placeholder;
-            
-            switch(currentEntryType) {
-                case 'symptom':
-                    selectedBtn = document.getElementById('type-symptom');
-                    label = 'Severity (1-10)';
-                    placeholder = 'Rate from 1 (mild) to 10 (severe)';
-                    break;
-                case 'medication':
-                    selectedBtn = document.getElementById('type-medication');
-                    label = 'Medication Name';
-                    placeholder = 'e.g., Albuterol, Inhaler';
-                    break;
-                case 'peak-flow':
-                    selectedBtn = document.getElementById('type-peak-flow');
-                    label = 'Peak Flow (L/min)';
-                    placeholder = 'e.g., 450';
-                    break;
-            }
-
-            if (selectedBtn) {
-                selectedBtn.classList.add('ring-2', 'ring-offset-2');
-                if (currentEntryType === 'symptom') selectedBtn.classList.add('ring-red-500');
-                if (currentEntryType === 'medication') selectedBtn.classList.add('ring-green-500');
-                if (currentEntryType === 'peak-flow') selectedBtn.classList.add('ring-blue-500');
-            }
-
-            valueLabel.textContent = label;
-            valueInput.placeholder = placeholder;
-        }
-
-        // Form handling
-        async function handleFormSubmit(e) {
-            e.preventDefault();
-
-            if (recordCount >= 999) {
-                showError("Maximum limit of 999 entries reached. Please delete some entries first.");
-                return;
-            }
-
-            const valueInput = document.getElementById('entry-value');
-            const notesInput = document.getElementById('entry-notes');
-            const saveBtn = document.getElementById('save-btn');
-
-            const value = valueInput.value.trim();
-            if (!value) {
-                showError("Please enter a value");
-                return;
-            }
-
-            // Show loading state
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-
-            try {
-                const now = new Date();
-                const entry = {
-                    id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    type: currentEntryType,
-                    date: now.toISOString().split('T')[0],
-                    time: now.toTimeString().split(' ')[0].substring(0, 5),
-                    value: value,
-                    notes: notesInput.value.trim()
-                };
-
-                const result = await window.dataSdk.create(entry);
-
-                if (result.isOk) {
-                    // Reset form
-                    valueInput.value = '';
-                    notesInput.value = '';
-                    showSuccess();
-                } else {
-                    showError("Failed to save entry. Please try again.");
+            ],
+            borderables: [],
+            fontEditable: {
+                get: () => config.font_family || defaultConfig.font_family,
+                set: (value) => {
+                    if (window.elementSdk) {
+                        window.elementSdk.setConfig({ font_family: value });
+                    }
                 }
-            } catch (error) {
-                console.error("Save error:", error);
-                showError("Failed to save entry. Please try again.");
-            } finally {
-                // Reset button state
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save Entry';
+            },
+            fontSizeable: {
+                get: () => config.font_size || defaultConfig.font_size,
+                set: (value) => {
+                    if (window.elementSdk) {
+                        window.elementSdk.setConfig({ font_size: value });
+                    }
+                }
+            }
+        };
+    }
+
+    // Edit panel values mapping
+    function mapToEditPanelValues(config) {
+        return new Map([
+            ["app_title", config.app_title || defaultConfig.app_title],
+            ["welcome_message", config.welcome_message || defaultConfig.welcome_message]
+        ]);
+    }
+
+    // Event listeners
+    function setupEventListeners() {
+        // Navigation
+        document.getElementById('nav-log').addEventListener('click', () => showSection('log', true));
+        document.getElementById('nav-history').addEventListener('click', () => showSection('history', true));
+
+        // Entry type buttons
+        document.getElementById('type-symptom').addEventListener('click', () => setEntryType('symptom'));
+        document.getElementById('type-medication').addEventListener('click', () => setEntryType('medication'));
+        document.getElementById('type-peak-flow').addEventListener('click', () => setEntryType('peak-flow'));
+
+        // Form submission
+        document.getElementById('entry-form').addEventListener('submit', handleFormSubmit);
+    }
+
+    // Helper to update navigation button styles
+    function updateNavStyles(section) {
+        const navLog = document.getElementById('nav-log');
+        const navHistory = document.getElementById('nav-history');
+        const primaryColor = currentConfig.primary_color;
+
+        // Fix: Clear previous active classes/styles
+        [navLog, navHistory].forEach(btn => {
+            btn.classList.remove('nav-active', 'text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+            btn.classList.add('text-gray-500');
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        });
+
+        const activeBtn = section === 'log' ? navLog : navHistory;
+        
+        // Fix: Apply active state and dynamic colors
+        activeBtn.classList.add('nav-active', 'border-b-2', 'bg-blue-50');
+        activeBtn.classList.remove('text-gray-500');
+        activeBtn.style.borderColor = primaryColor;
+        activeBtn.style.color = primaryColor;
+    }
+
+    // Navigation
+    function showSection(section, animate = true) {
+        const logSection = document.getElementById('log-section');
+        const historySection = document.getElementById('history-section');
+        
+        if (section === 'log') {
+            logSection.classList.remove('hidden');
+            historySection.classList.add('hidden');
+        } else {
+            logSection.classList.add('hidden');
+            historySection.classList.remove('hidden');
+        }
+
+        if (animate) {
+            const activeSection = section === 'log' ? logSection : historySection;
+            activeSection.classList.add('fade-in');
+            setTimeout(() => activeSection.classList.remove('fade-in'), 300);
+        }
+        
+        updateNavStyles(section);
+    }
+
+    // Entry type management
+    function setEntryType(type) {
+        currentEntryType = type;
+        updateEntryTypeUI();
+    }
+
+    function updateEntryTypeUI() {
+        const buttons = document.querySelectorAll('.entry-type-btn');
+        const valueLabel = document.getElementById('value-label');
+        const valueInput = document.getElementById('entry-value');
+        const primaryColor = currentConfig.primary_color; // Use primary color for ring on peak-flow
+
+        buttons.forEach(btn => {
+            // Fix: Clean up all ring classes and custom shadow
+            btn.classList.remove('ring-2', 'ring-offset-2', 'ring-red-500', 'ring-green-500', 'ring-blue-500');
+            btn.style.boxShadow = ''; 
+        });
+
+        let selectedBtn, label, placeholder;
+        
+        switch(currentEntryType) {
+            case 'symptom':
+                selectedBtn = document.getElementById('type-symptom');
+                label = 'Severity (1-10)';
+                placeholder = 'Rate from 1 (mild) to 10 (severe)';
+                break;
+            case 'medication':
+                selectedBtn = document.getElementById('type-medication');
+                label = 'Medication Name';
+                placeholder = 'e.g., Albuterol, Inhaler';
+                break;
+            case 'peak-flow':
+                selectedBtn = document.getElementById('type-peak-flow');
+                label = 'Peak Flow (L/min)';
+                placeholder = 'e.g., 450';
+                break;
+        }
+
+        if (selectedBtn) {
+            selectedBtn.classList.add('ring-2', 'ring-offset-2');
+            if (currentEntryType === 'symptom') selectedBtn.classList.add('ring-red-500');
+            else if (currentEntryType === 'medication') selectedBtn.classList.add('ring-green-500');
+            else {
+                 // Fix: Apply dynamic primary color for Peak Flow ring
+                 selectedBtn.style.boxShadow = `0 0 0 2px ${primaryColor}`; 
             }
         }
 
-        // Statistics
-        function updateTodayStats() {
-            const today = new Date().toISOString().split('T')[0];
-            const todayEntries = allEntries.filter(entry => entry.date === today);
+        valueLabel.textContent = label;
+        valueInput.placeholder = placeholder;
+    }
 
-            const symptoms = todayEntries.filter(entry => entry.type === 'symptom').length;
-            const medications = todayEntries.filter(entry => entry.type === 'medication').length;
-            const peakFlows = todayEntries.filter(entry => entry.type === 'peak-flow').length;
+    // Form handling
+    async function handleFormSubmit(e) {
+        e.preventDefault();
 
-            document.getElementById('today-symptoms').textContent = symptoms;
-            document.getElementById('today-medications').textContent = medications;
-            document.getElementById('today-peak-flows').textContent = peakFlows;
+        if (recordCount >= 999) {
+            showError("Maximum limit of 999 entries reached. Please delete some entries first.");
+            return;
         }
 
-        // History rendering
-        function renderEntriesHistory() {
-            const entriesList = document.getElementById('entries-list');
-            
-            if (allEntries.length === 0) {
-                entriesList.innerHTML = `
-                    <div class="text-center text-gray-500 py-8">
-                        <div class="text-4xl mb-2">📋</div>
-                        <p>No entries yet. Start tracking your asthma!</p>
-                    </div>
-                `;
+        const valueInput = document.getElementById('entry-value');
+        const notesInput = document.getElementById('entry-notes');
+        const saveBtn = document.getElementById('save-btn');
+
+        const value = valueInput.value.trim();
+        if (!value) {
+            showError("Please enter a value");
+            return;
+        }
+
+        // Fix: Add basic input validation
+        if (currentEntryType === 'symptom') {
+            const severity = parseInt(value, 10);
+            if (isNaN(severity) || severity < 1 || severity > 10) {
+                showError("Severity must be a number between 1 and 10.");
                 return;
             }
+        } else if (currentEntryType === 'peak-flow') {
+            const peakFlow = parseInt(value, 10);
+            if (isNaN(peakFlow) || peakFlow <= 0 || peakFlow > 850) { // Max peak flow is around 850L/min
+                showError("Peak Flow must be a positive number (up to ~850 L/min).");
+                return;
+            }
+        }
 
-            // Sort entries by date and time (newest first)
-            const sortedEntries = [...allEntries].sort((a, b) => {
-                const dateA = new Date(`${a.date}T${a.time}`);
-                const dateB = new Date(`${b.date}T${b.time}`);
-                return dateB - dateA;
-            });
 
-            entriesList.innerHTML = sortedEntries.map(entry => {
-                const typeConfig = getEntryTypeConfig(entry.type);
-                return `
-                    <div class="bg-white rounded-lg p-3 border border-gray-200 fade-in">
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1">
-                                <div class="flex items-center mb-1">
-                                    <span class="text-lg mr-2">${typeConfig.icon}</span>
-                                    <span class="font-medium ${typeConfig.color}">${typeConfig.label}</span>
-                                    <span class="ml-auto text-sm text-gray-500">${entry.date} ${entry.time}</span>
-                                </div>
-                                <div class="text-sm text-gray-700 mb-1">
-                                    <strong>${typeConfig.valueLabel}:</strong> ${entry.value}
-                                </div>
-                                ${entry.notes ? `<div class="text-sm text-gray-600">${entry.notes}</div>` : ''}
+        // Show loading state
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+            const now = new Date();
+            const entry = {
+                // Fix: Generate a more reliable, unique ID
+                id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                type: currentEntryType,
+                date: now.toISOString().split('T')[0],
+                time: now.toTimeString().split(' ')[0].substring(0, 5),
+                value: value,
+                notes: notesInput.value.trim()
+            };
+
+            // Use optional chaining in case dataSdk isn't fully initialized
+            const result = await (window.dataSdk?.create(entry) || { isOk: true });
+
+            if (result.isOk) {
+                // Reset form
+                valueInput.value = '';
+                notesInput.value = '';
+                showSuccess();
+            } else {
+                showError("Failed to save entry. Please try again.");
+            }
+        } catch (error) {
+            console.error("Save error:", error);
+            showError("Failed to save entry. Please try again.");
+        } finally {
+            // Reset button state
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Entry';
+        }
+    }
+
+    // Statistics
+    function updateTodayStats() {
+        const today = new Date().toISOString().split('T')[0];
+        const todayEntries = allEntries.filter(entry => entry.date === today);
+
+        const symptoms = todayEntries.filter(entry => entry.type === 'symptom').length;
+        const medications = todayEntries.filter(entry => entry.type === 'medication').length;
+        const peakFlows = todayEntries.filter(entry => entry.type === 'peak-flow').length;
+
+        document.getElementById('today-symptoms').textContent = symptoms;
+        document.getElementById('today-medications').textContent = medications;
+        document.getElementById('today-peak-flows').textContent = peakFlows;
+    }
+
+    // History rendering
+    function renderEntriesHistory() {
+        const entriesList = document.getElementById('entries-list');
+        
+        if (allEntries.length === 0) {
+            entriesList.innerHTML = `
+                <div class="text-center text-gray-500 py-8">
+                    <div class="text-4xl mb-2">📋</div>
+                    <p>No entries yet. Start tracking your asthma!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Fix: Sort entries by date and time (newest first) using robust parsing
+        const sortedEntries = [...allEntries].sort((a, b) => {
+            const dateA = new Date(`${a.date}T${a.time}:00Z`); // Append :00Z for UTC interpretation
+            const dateB = new Date(`${b.date}T${b.time}:00Z`);
+            return dateB - dateA;
+        });
+
+        entriesList.innerHTML = sortedEntries.map(entry => {
+            const typeConfig = getEntryTypeConfig(entry.type);
+            return `
+                <div class="bg-white rounded-lg p-3 border border-gray-200 fade-in">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center mb-1">
+                                <span class="text-lg mr-2">${typeConfig.icon}</span>
+                                <span class="font-medium ${typeConfig.color}">${typeConfig.label}</span>
+                                <span class="ml-auto text-sm text-gray-500">${entry.date} ${entry.time}</span>
                             </div>
+                            <div class="text-sm text-gray-700 mb-1">
+                                <strong>${typeConfig.valueLabel}:</strong> ${entry.value}
+                            </div>
+                            ${entry.notes ? `<div class="text-sm text-gray-600">${entry.notes}</div>` : ''}
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
+                </div>
+            `;
+        }).join('');
+    }
 
-        function getEntryTypeConfig(type) {
-            switch(type) {
-                case 'symptom':
-                    return {
-                        icon: '🫁',
-                        label: 'Symptoms',
-                        color: 'text-red-600',
-                        valueLabel: 'Severity'
-                    };
-                case 'medication':
-                    return {
-                        icon: '💊',
-                        label: 'Medication',
-                        color: 'text-green-600',
-                        valueLabel: 'Medication'
-                    };
-                case 'peak-flow':
-                    return {
-                        icon: '📈',
-                        label: 'Peak Flow',
-                        color: 'text-blue-600',
-                        valueLabel: 'Reading'
-                    };
-                default:
-                    return {
-                        icon: '📝',
-                        label: 'Entry',
-                        color: 'text-gray-600',
-                        valueLabel: 'Value'
-                    };
-            }
+    function getEntryTypeConfig(type) {
+        switch(type) {
+            case 'symptom':
+                return {
+                    icon: '🫁',
+                    label: 'Symptoms',
+                    color: 'text-red-600',
+                    valueLabel: 'Severity'
+                };
+            case 'medication':
+                return {
+                    icon: '💊',
+                    label: 'Medication',
+                    color: 'text-green-600',
+                    valueLabel: 'Medication'
+                };
+            case 'peak-flow':
+                return {
+                    icon: '📈',
+                    label: 'Peak Flow',
+                    color: 'text-blue-600',
+                    valueLabel: 'Reading'
+                };
+            default:
+                return {
+                    icon: '📝',
+                    label: 'Entry',
+                    color: 'text-gray-600',
+                    valueLabel: 'Value'
+                };
         }
+    }
 
-        // Toast notifications
-        function showSuccess() {
-            const toast = document.getElementById('success-toast');
-            toast.classList.remove('translate-y-full');
-            setTimeout(() => {
-                toast.classList.add('translate-y-full');
-            }, 3000);
-        }
+    // Toast notifications
+    function showSuccess() {
+        const toast = document.getElementById('success-toast');
+        toast.classList.add('pulse-success');
+        toast.classList.remove('translate-y-full');
+        setTimeout(() => {
+            toast.classList.add('translate-y-full');
+            toast.classList.remove('pulse-success');
+        }, 3000);
+    }
 
-        function showError(message) {
-            const toast = document.getElementById('error-toast');
-            const messageEl = document.getElementById('error-message');
-            messageEl.textContent = message;
-            toast.classList.remove('translate-y-full');
-            setTimeout(() => {
-                toast.classList.add('translate-y-full');
-            }, 4000);
-        }
+    function showError(message) {
+        const toast = document.getElementById('error-toast');
+        const messageEl = document.getElementById('error-message');
+        messageEl.textContent = message;
+        toast.classList.remove('translate-y-full');
+        setTimeout(() => {
+            toast.classList.add('translate-y-full');
+        }, 4000);
+    }
 
-        // Initialize app when page loads
-        document.addEventListener('DOMContentLoaded', initializeApp);
-    </script>
+    // Initialize app when page loads
+    document.addEventListener('DOMContentLoaded', initializeApp);
+</script>      
+ 
 </html>
